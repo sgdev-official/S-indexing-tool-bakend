@@ -31,7 +31,6 @@ GOOGLE_SHEET_WEBAPP_URL = os.environ.get(
     "https://script.google.com/macros/s/AKfycbzG1fAg6CKkbsOLaNgGRsuqvYoyg8tva6VwPQusEfzsISyJXmVchP_72Vjj9_jY3zATEQ/exec"
 )
 
-# Vercel-এর জন্য 'app' অবজেক্ট
 app = FastAPI(title="S-Indexer API", version=APP_VERSION)
 
 app.add_middleware(
