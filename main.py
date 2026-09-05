@@ -1,9 +1,3 @@
-"""
-S-Indexer API
-=============
-Developer: Sgdev
-"""
-
 import os
 import json
 import random
@@ -38,6 +32,7 @@ GOOGLE_SHEET_WEBAPP_URL = os.environ.get(
     "https://script.google.com/macros/s/AKfycbzG1fAg6CKkbsOLaNgGRsuqvYoyg8tva6VwPQusEfzsISyJXmVchP_72Vjj9_jY3zATEQ/exec"
 )
 
+# Vercel Serverless Entrypoint
 app = FastAPI(title="S-Indexer API", version=APP_VERSION)
 
 app.add_middleware(
@@ -75,7 +70,6 @@ def send_post_request(url: str, data: dict) -> bool:
 def process_background_tasks(target_url: str, assigned_node: str) -> None:
     indexnow_status = "Failed"
     
-    # 1. Dispatch IndexNow
     payload = {
         "host": INDEXNOW_HOST,
         "key": INDEXNOW_KEY,
@@ -85,7 +79,6 @@ def process_background_tasks(target_url: str, assigned_node: str) -> None:
     if send_post_request(INDEXNOW_ENDPOINT, payload):
         indexnow_status = "Dispatched"
 
-    # 2. Log to Google Sheet
     if GOOGLE_SHEET_WEBAPP_URL:
         sheet_payload = {
             "url": target_url,
