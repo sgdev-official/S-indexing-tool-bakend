@@ -3,11 +3,10 @@ import json
 import random
 import logging
 import urllib.request
-from typing import List
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("s-indexer")
@@ -15,7 +14,7 @@ logger = logging.getLogger("s-indexer")
 APP_VERSION = "1.0.0"
 DEVELOPER = "Sgdev"
 
-FEED_NODES: List[str] = [
+FEED_NODES = [
     "https://1.sindex.duckdns.org",
     "https://2.sindex.duckdns.org",
     "https://3.sindex.duckdns.org",
@@ -32,7 +31,7 @@ GOOGLE_SHEET_WEBAPP_URL = os.environ.get(
     "https://script.google.com/macros/s/AKfycbzG1fAg6CKkbsOLaNgGRsuqvYoyg8tva6VwPQusEfzsISyJXmVchP_72Vjj9_jY3zATEQ/exec"
 )
 
-# Vercel Serverless Entrypoint
+# Vercel-এর জন্য 'app' অবজেক্ট
 app = FastAPI(title="S-Indexer API", version=APP_VERSION)
 
 app.add_middleware(
@@ -44,14 +43,7 @@ app.add_middleware(
 )
 
 class URLSubmission(BaseModel):
-    url: HttpUrl
-
-class SubmissionResponse(BaseModel):
-    success: bool
-    message: str
-    target_url: str
-    assigned_feed_node: str
-    indexnow_dispatched: bool
+    url: str
 
 def send_post_request(url: str, data: dict) -> bool:
     try:
@@ -64,12 +56,11 @@ def send_post_request(url: str, data: dict) -> bool:
         with urllib.request.urlopen(req, timeout=10) as response:
             return response.status in (200, 202)
     except Exception as exc:
-        logger.error("HTTP Request failed to %s: %s", url, exc)
+        logger.error("HTTP Request failed: %s", exc)
         return False
 
 def process_background_tasks(target_url: str, assigned_node: str) -> None:
     indexnow_status = "Failed"
-    
     payload = {
         "host": INDEXNOW_HOST,
         "key": INDEXNOW_KEY,
@@ -88,7 +79,7 @@ def process_background_tasks(target_url: str, assigned_node: str) -> None:
         send_post_request(GOOGLE_SHEET_WEBAPP_URL, sheet_payload)
 
 @app.get("/")
-async def root():
+def root():
     return {
         "status": "online",
         "service": "S-Indexer",
@@ -97,22 +88,22 @@ async def root():
     }
 
 @app.get("/api/v1/health")
-async def health_check():
+def health_check():
     return {"status": "ok"}
 
-@app.post("/api/v1/submit", response_model=SubmissionResponse)
-async def submit_url(payload: URLSubmission, background_tasks: BackgroundTasks):
+@app.post("/api/v1/submit")
+def submit_url(payload: URLSubmission, background_tasks: BackgroundTasks):
     try:
-        target_url = str(payload.url)
+        target_url = payload.url
         assigned_node = random.choice(FEED_NODES)
         background_tasks.add_task(process_background_tasks, target_url, assigned_node)
 
-        return SubmissionResponse(
-            success=True,
-            message="URL received and queued.",
-            target_url=target_url,
-            assigned_feed_node=assigned_node,
-            indexnow_dispatched=True,
-        )
+        return {
+            "success": True,
+            "message": "URL received and queued.",
+            "target_url": target_url,
+            "assigned_feed_node": assigned_node,
+            "indexnow_dispatched": True,
+        }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
