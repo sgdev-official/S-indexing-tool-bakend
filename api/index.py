@@ -194,3 +194,9 @@ async def submit_url(payload: URLSubmission, background_tasks: BackgroundTasks):
             status_code=500,
             detail="Failed to process URL submission.",
         )
+
+
+# ---------------------------------------------------------------------------
+# Vercel entry point requirement
+# ---------------------------------------------------------------------------
+app = app
