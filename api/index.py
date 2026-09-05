@@ -169,3 +169,4 @@ async def submit_url(payload: URLSubmission, background_tasks: BackgroundTasks):
             status_code=500,
             detail=f"Failed to process URL submission: {exc}",
         )
+    app=app
