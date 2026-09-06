@@ -1,0 +1,14 @@
+name: Render Keep-Alive Ping
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # প্রতি ৫ মিনিটে রান করবে
+  workflow_dispatch: # ম্যানুয়ালি টেস্ট করার জন্য
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send HTTP Ping
+        run: |
+          curl -s -f https://s-indexing-tool-bakend.onrender.com//api/v1/health || echo "Ping failed or starting up"
