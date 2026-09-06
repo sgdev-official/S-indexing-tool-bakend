@@ -2,8 +2,8 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
+import json
 
-# 👈 uvicorn এই 'app' নামটাই খুঁজছে!
 app = FastAPI(title="S-Indexer Core Backend")
 
 app.add_middleware(
@@ -21,16 +21,18 @@ class IndexRequest(BaseModel):
 
 def push_to_google_sheet(target_url: str):
     try:
-        payload = {"url": target_url}
-        requests.post(
+        payload = json.dumps({"url": target_url})
+        headers = {"Content-Type": "text/plain;charset=utf-8"}
+        response = requests.post(
             GOOGLE_SHEET_API, 
-            json=payload, 
-            headers={"Content-Type": "application/json"},
+            data=payload, 
+            headers=headers,
             allow_redirects=True,
             timeout=10
         )
-    except Exception:
-        pass
+        print(f"Sheet Sync Status: {response.status_code}")
+    except Exception as e:
+        print(f"Sheet Sync Error: {e}")
 
 @app.get("/")
 def root_check():
