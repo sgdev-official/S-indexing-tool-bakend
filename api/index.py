@@ -2,7 +2,7 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
-import json
+import os
 
 app = FastAPI(title="S-Indexer Core Backend")
 
@@ -14,39 +14,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbzG1fAg6CKkbsOLaNgGRsuqvYoyg8tva6VwPQusEfzsISyJXmVchP_72Vjj9_jY3zATEQ/exec"
+KV_URL = os.getenv("KV_REST_API_URL")
+KV_TOKEN = os.getenv("KV_REST_API_TOKEN")
 
 class IndexRequest(BaseModel):
     url: str
 
-def push_to_google_sheet(target_url: str):
+def push_to_vercel_kv(target_url: str):
     try:
-        payload = json.dumps({"url": target_url})
-        headers = {"Content-Type": "text/plain;charset=utf-8"}
-        response = requests.post(
-            GOOGLE_SHEET_API, 
-            data=payload, 
-            headers=headers,
-            allow_redirects=True,
-            timeout=10
-        )
-        print(f"Sheet Sync Status: {response.status_code}")
+        headers = {"Authorization": f"Bearer {KV_TOKEN}"}
+        # Upstash Redis REST API call via LPUSH
+        url = f"{KV_URL}/lpush/urls/{target_url}"
+        response = requests.get(url, headers=headers, timeout=5)
+        print(f"KV Push Response: {response.status_code} - {response.text}")
     except Exception as e:
-        print(f"Sheet Sync Error: {e}")
+        print(f"KV Push Error: {e}")
 
 @app.get("/")
 def root_check():
-    return {"status": "online", "system": "S-Indexer Active"}
+    return {"status": "online", "system": "S-Indexer Vercel KV Active"}
+
+@app.get("/api/v1/feed")
+def get_feed_urls():
+    try:
+        headers = {"Authorization": f"Bearer {KV_TOKEN}"}
+        # Fetch top 100 queued URLs
+        url = f"{KV_URL}/lrange/urls/0/99"
+        res = requests.get(url, headers=headers, timeout=5)
+        data = res.json()
+        return {"urls": data.get("result", [])}
+    except Exception as e:
+        return {"urls": [], "error": str(e)}
 
 @app.post("/api/v1/index")
 async def handle_indexing(req: IndexRequest, background_tasks: BackgroundTasks):
     if not req.url or not req.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL format")
 
-    background_tasks.add_task(push_to_google_sheet, req.url)
+    background_tasks.add_task(push_to_vercel_kv, req.url)
 
     return {
         "success": True,
-        "message": "URL successfully queued",
+        "message": "URL successfully queued in Vercel KV",
         "target_url": req.url
     }
